@@ -39,9 +39,7 @@ def show_classifier_results(behavior_classes, all_score,
                                                               key=f'color_option{i}')
     keys = ['Behavior', 'Performance %', 'Iteration #']
     perf_by_class = {k: [] for k in behavior_classes}
-    # st.write(base_score, learn_score)
     scores = np.vstack((np.hstack(base_score), np.vstack(learn_score)))
-    # st.write(scores)
     mean_scores = [100 * round(np.mean(scores[j], axis=0), 2) for j in range(len(scores))]
     mean_scores2beat = np.mean(all_score, axis=0)
     scores2beat_byclass = all_score.copy()
@@ -265,17 +263,23 @@ class RF_Classify:
         predict = bsoid_predict_numba_noscale([self.features_heldout], self.iter0_model)
         predict = np.hstack(predict)
 
+        flt_predict = predict[self.targets_heldout != self.label_code_other]
+        curr_targets = self.targets_heldout[self.targets_heldout != self.label_code_other]
+
         # check f1 scores per class
         self.iter0_f1_scores = f1_score(
-            self.targets_heldout[self.targets_heldout != self.label_code_other],
-            predict[self.targets_heldout != self.label_code_other],
-            average=None)
+            curr_targets,
+            flt_predict,
+            average=None
+            , labels=np.unique(curr_targets))
 
         # check f1 scores overall
         self.iter0_macro_scores = f1_score(
-            self.targets_heldout[self.targets_heldout != self.label_code_other],
-            predict[self.targets_heldout != self.label_code_other],
-            average='macro')
+            curr_targets,
+            flt_predict,
+            average='macro'
+            , labels=np.unique(curr_targets))
+
         self.iter0_predict_prob = self.iter0_model.predict_proba(
             self.features_train[self.targets_train != self.label_code_other])
         self.iter0_X_train = X_train
@@ -520,14 +524,36 @@ class RF_Classify:
 
                 self.iterX_X_train_list.append(X_train)
                 self.iterX_Y_train_list.append(Y_train)
-                self.iterX_f1_scores_list.append(f1_score(
-                    self.targets_heldout[self.targets_heldout != self.label_code_other],
-                    predict[self.targets_heldout != self.label_code_other],
-                    average=None))
-                self.iterX_macro_scores_list.append(f1_score(
-                    self.targets_heldout[self.targets_heldout != self.label_code_other],
-                    predict[self.targets_heldout != self.label_code_other],
-                    average='macro'))
+                # check f1 scores per class, always exclude other (unlabeled data)
+
+                flt_predict = predict[self.targets_heldout != self.label_code_other]
+                curr_targets = self.targets_heldout[self.targets_heldout != self.label_code_other]
+
+                # check f1 scores per class
+                curr_f1_scores = f1_score(
+                    curr_targets,
+                    flt_predict,
+                    average=None
+                    , labels=np.unique(curr_targets))
+
+                # check f1 scores overall
+                curr_macro_scores = f1_score(
+                    curr_targets,
+                    flt_predict,
+                    average='macro'
+                    , labels=np.unique(curr_targets))
+
+                # curr_f1_scores = f1_score(
+                #     self.targets_heldout[self.targets_heldout != self.label_code_other]
+                #     , predict[self.targets_heldout != self.label_code_other]
+                #     , average=None)
+                # curr_macro_scores = f1_score(
+                #     self.targets_heldout[self.targets_heldout != self.label_code_other],
+                #     predict[self.targets_heldout != self.label_code_other],
+                #     average='macro')
+
+                self.iterX_f1_scores_list.append(curr_f1_scores)
+                self.iterX_macro_scores_list.append(curr_macro_scores)
                 self.iterX_predict_prob_list.append(self.iterX_model.predict_proba(
                     self.features_train[self.targets_train != self.label_code_other]))
                 self.sampled_idx_list.append(sampled_idx)
