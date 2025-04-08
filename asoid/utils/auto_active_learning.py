@@ -461,7 +461,7 @@ class RF_Classify:
             '5': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 25, axis=1),
             '6': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 75, axis=1),
         }
-        compute_confidence = confidence_lot['2']
+        compute_confidence = confidence_lot['1']
         for it in range(self.max_iter):
             with st.spinner(f'Training iteration {it + 1}...'):
                 # st.info(f'Training iteration {it + 1}...'.upper())
