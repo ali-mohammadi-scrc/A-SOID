@@ -442,7 +442,8 @@ def predict_annotate_video(ftype, software, is_3d, multi_animal, selected_bodypa
                 selected_pose_idx = np.sort(np.array(bp_index_list).flatten())
 
                 # get likelihood column idx directly from dataframe columns
-                idx_llh = [i for i, s in enumerate(current_pose.columns) if "likelihood" in s]
+                # idx_llh = [i for i, s in enumerate(current_pose.columns) if "likelihood" in s]
+                idx_llh = [i for i, s in enumerate(current_pose.columns) if "likelihood" in s and s in current_pose.columns[selected_pose_idx]]
 
                 # the loaded sleap file has them too, so exclude for both
                 idx_selected = [i for i in selected_pose_idx if i not in idx_llh]
