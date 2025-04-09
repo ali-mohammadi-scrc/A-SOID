@@ -456,6 +456,16 @@ class RF_Classify:
         # iterX_predict_prob = dict()
         # iterX_macro_scores = dict()
         # iterX_f1_scores = dict()
+        confidence_lot = {
+            # TODO: add selection of confidence metric in the UI
+            '1': lambda predictions: np.max(predictions, axis=1),
+            '2': lambda predictions: np.max(predictions, axis=1) - np.min(predictions, axis=1),
+            '3': lambda predictions: np.max(predictions, axis=1) - np.mean(predictions, axis=1),
+            '4': lambda predictions: np.max(predictions, axis=1) - np.median(predictions, axis=1),
+            '5': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 25, axis=1),
+            '6': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 75, axis=1),
+        }
+        compute_confidence = confidence_lot['1']
         for it in range(self.max_iter):
             with st.spinner(f'Training iteration {it + 1}...'):
                 # st.info(f'Training iteration {it + 1}...'.upper())
@@ -470,30 +480,22 @@ class RF_Classify:
                     X_train = self.iter0_X_train
                     Y_train = self.iter0_Y_train
                     # retrieve iteration 0 predict probability
-                    idx_lowconf = np.where(self.iter0_predict_prob.max(1) < self.conf_threshold)[0]
-                    # identify all features/targets that were low predict prob
-                    new_X_human = self.features_train[self.targets_train != self.label_code_other][
-                                  idx_lowconf, :]
-                    new_Y_human = self.targets_train[self.targets_train != self.label_code_other][
-                        idx_lowconf]
+                    idx_lowconf = np.where(compute_confidence(self.iter0_predict_prob) < self.conf_threshold)[0]
                 else:
-                    idx_lowconf = np.where(self.iterX_predict_prob_list[it - 1].max(1) < self.conf_threshold)[0]
-                    new_X_human = self.features_train[self.targets_train != self.label_code_other][
-                                  idx_lowconf, :]
-                    new_Y_human = self.targets_train[self.targets_train != self.label_code_other][
-                        idx_lowconf]
+                    idx_lowconf = np.where(compute_confidence(self.iterX_predict_prob_list[it - 1]) < self.conf_threshold)[0]
+                    
+                # identify all features/targets that were low predict prob
+                new_X_human = self.features_train[self.targets_train != self.label_code_other][idx_lowconf, :]
+                new_Y_human = self.targets_train[self.targets_train != self.label_code_other][idx_lowconf]
+                
                 np.random.seed(42)
                 try:
-                    # attempt sampling up to max_samples_per iteration
+                    # attempt sampling up to max_samples_per iteration otherwise just grab all
                     idx_sampled = np.random.choice(np.arange(idx_lowconf.shape[0]),
-                                                   self.max_samples_iter, replace=False)
+                                                   min(self.max_samples_iter, idx_lowconf.shape[0]), 
+                                                   replace=False)
                 except:
-                    # otherwise just grab all
-                    try:
-                        idx_sampled = np.random.choice(np.arange(idx_lowconf.shape[0]),
-                                                       idx_lowconf.shape[0], replace=False)
-                    except:
-                        break
+                    break
 
                 new_X_sampled = new_X_human[idx_sampled, :]
                 new_Y_sampled = new_Y_human[idx_sampled]
@@ -557,7 +559,7 @@ class RF_Classify:
                 self.iterX_predict_prob_list.append(self.iterX_model.predict_proba(
                     self.features_train[self.targets_train != self.label_code_other]))
                 self.sampled_idx_list.append(sampled_idx)
-                len_low_conf = len(np.where(self.iterX_predict_prob_list[-1].max(1) < self.conf_threshold)[0])
+                len_low_conf = len(np.where(compute_confidence(self.iterX_predict_prob_list[-1]) < self.conf_threshold)[0])
                 if np.min(len_low_conf) > 0:
                     self.show_training_performance(it + 1)
 
