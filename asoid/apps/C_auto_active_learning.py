@@ -90,6 +90,7 @@ def prompt_setup(software, train_fx, conf, conf_type,
                             , index = int(list(available_conf_types.keys()).index(conf_type))
                             , help = CONFIDENCE_TYPE_HELP
                             )
+    
     if st.session_state['conf_type'] != sel_conf_type:
         # get the default confidence threshold for the selected confidence type
         conf = available_conf_types[sel_conf_type]["default_thresh"]
@@ -145,6 +146,8 @@ def main(ri=None, config=None):
             conf = 0.5
         if 'conf_threshold' not in st.session_state:
             st.session_state['conf_threshold'] = None
+        if 'conf_type' not in st.session_state:
+            st.session_state['conf_type'] = conf_type
 
         try:
             [all_f1_scores] = \

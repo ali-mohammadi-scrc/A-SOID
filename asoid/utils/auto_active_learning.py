@@ -16,21 +16,21 @@ def get_confidence_calc(k):
     return: function to calculate confidence
     
     Available options:
-    1: max
-    2: max - min
-    3: max - mean
-    4: max - median
-    5: max - 25th percentile
-    6: max - 75th percentile
+    0: max
+    1: max - min
+    2: max - mean
+    3: max - median
+    4: max - 25th percentile
+    5: max - 75th percentile
     """
     #TODO: change key to be more descriptive
     confidence_lot = {
-    '1': lambda predictions: np.max(predictions, axis=1),
-    '2': lambda predictions: np.max(predictions, axis=1) - np.min(predictions, axis=1),
-    '3': lambda predictions: np.max(predictions, axis=1) - np.mean(predictions, axis=1),
-    '4': lambda predictions: np.max(predictions, axis=1) - np.median(predictions, axis=1),
-    '5': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 25, axis=1),
-    '6': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 75, axis=1),
+    '0': lambda predictions: np.max(predictions, axis=1),
+    '1': lambda predictions: np.max(predictions, axis=1) - np.min(predictions, axis=1),
+    '2': lambda predictions: np.max(predictions, axis=1) - np.mean(predictions, axis=1),
+    '3': lambda predictions: np.max(predictions, axis=1) - np.median(predictions, axis=1),
+    '4': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 25, axis=1),
+    '5': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 75, axis=1),
     }
 
     assert k in confidence_lot, f"Invalid option {k}. Available options are: {list(confidence_lot.keys())}"
@@ -44,12 +44,12 @@ def get_available_conf_options():
     #TODO: change key to be more descriptive
     #TODO: change default threshold to real default threshold
     confidence_lot = {
-    '1': dict(description = 'max', default_thresh = 0.5),
-    '2': dict(description = 'max - min', default_thresh = 0.5),
-    '3': dict(description = 'max - mean', default_thresh = 0.5),
-    '4': dict(description = 'max - median', default_thresh = 0.5),
-    '5': dict(description = 'max - 25th percentile', default_thresh = 0.5),
-    '6': dict(description = 'max - 75th percentile', default_thresh = 0.5)
+    '0': dict(description = 'max', default_thresh = 0.5),
+    '1': dict(description = 'max - min', default_thresh = 0.5),
+    '2': dict(description = 'max - mean', default_thresh = 0.5),
+    '3': dict(description = 'max - median', default_thresh = 0.5),
+    '4': dict(description = 'max - 25th percentile', default_thresh = 0.5),
+    '5': dict(description = 'max - 75th percentile', default_thresh = 0.5)
     }
     
     return confidence_lot
