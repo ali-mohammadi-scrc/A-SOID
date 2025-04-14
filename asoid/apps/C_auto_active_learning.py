@@ -81,9 +81,15 @@ def prompt_setup(software, train_fx, conf, conf_type,
     #turn dict into nice string in markdown
     conf_types_str = "\n".join([f"{k}: {available_conf_types[k]['description']} \n" for k in available_conf_types.keys()])
     CONFIDENCE_TYPE_HELP = ("Confidence type to use for the classifier. \n\n" \
-                            "The confidence type is used to determine the confidence of the classifier in its predictions. \n\n" \
+                            "The confidence type is used to determine the confidence of the classifier in its predictions. \n" \
+                            "The probability ouput of clf.predict_proba(X) is used to calculate the confidence. See \n\n" \
                             "Available types: \n\n" \
                             + conf_types_str)
+
+    if conf_type not in get_available_conf_options():
+            col2_bot_exp.error(f"Invalid confidence calculation option found in config: {conf_type}. Defaulting to 'max'.")
+            conf_type = 'max'
+
     
     sel_conf_type = col2_bot_exp.selectbox('Confidence type'
                             , available_conf_types.keys()
