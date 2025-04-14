@@ -221,33 +221,22 @@ class RF_Classify:
         self.perf_by_class = {k: [] for k in annotation_classes}
         self.perf2beat_by_class = {k: [] for k in annotation_classes}
 
+    def init_cl(self):
+        cl = RandomForestClassifier(n_estimators=200
+                                    , random_state=42
+                                    , n_jobs=-1
+                                    , criterion='gini'
+                                    , class_weight='balanced_subsample'
+                                    )
+        return cl
+
     def split_data(self):
         [X, y, self.frames2integ] = \
             load_features(self.project_dir, self.iter_dir)
-        # st.write(features.shape, targets.shape)
-        # partitioning into N randomly selected train/test splits
 
         self.features_train, self.features_heldout, \
             self.targets_train, self.targets_heldout = train_test_split(X, y, test_size=0.20, random_state=42)
 
-        # seeds = np.arange(shuffled_splits)
-        # # st.write(seeds)
-        # if features.shape[0] > targets.shape[0]:
-        #     X = features[:targets.shape[0]].copy()
-        #     y = targets.copy()
-        # elif features.shape[0] < targets.shape[0]:
-        #     X = features.copy()
-        #     y = targets[:features.shape[0]].copy()
-        # else:
-        #     X = features.copy()
-        #     y = targets.copy()
-        # for seed in stqdm(seeds, desc="Randomly partitioning into 80/20..."):
-        #     X_train, X_test, y_train, y_test = train_test_split(X, y,
-        #                                                         test_size=0.20, random_state=seed)
-        #     self.features_train.append(X_train)
-        #     self.targets_train.append(y_train)
-        #     self.features_heldout.append(X_test)
-        #     self.targets_heldout.append(y_test)
 
     def subsampled_classify(self):
         self.split_data()
@@ -264,10 +253,7 @@ class RF_Classify:
             Y_all.append(self.targets_train[self.targets_train == sample_label][:])
         X_all_train = np.vstack(X_all)
         Y_all_train = np.hstack(Y_all)
-        self.all_model = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1,
-                                                criterion='gini',
-                                                class_weight='balanced_subsample'
-                                                )
+        self.all_model = self.init_cl()
         self.all_model.fit(X_all_train, Y_all_train)
         predict = bsoid_predict_numba_noscale([self.features_heldout], self.all_model)
         predict = np.hstack(predict)
@@ -305,10 +291,8 @@ class RF_Classify:
 
         X_train = np.vstack(X)
         Y_train = np.hstack(Y)
-        self.iter0_model = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1,
-                                                  criterion='gini',
-                                                  class_weight='balanced_subsample'
-                                                  )
+        self.iter0_model = self.init_cl()
+        
         self.iter0_model.fit(X_train, Y_train)
         predict = bsoid_predict_numba_noscale([self.features_heldout], self.iter0_model)
         predict = np.hstack(predict)
@@ -335,108 +319,6 @@ class RF_Classify:
         self.iter0_X_train = X_train
         self.iter0_Y_train = Y_train
 
-        # for i in range(len(self.features_train)):
-        #     X_all = []
-        #     Y_all = []
-        #
-        #     unique_classes = np.unique(np.hstack([np.hstack(self.targets_train), np.hstack(self.targets_heldout)]))
-        #     # remove other if exclude other
-        #     if self.exclude_other:
-        #         unique_classes = unique_classes[unique_classes != self.label_code_other]
-        #
-        #     # go through each class and select the all samples from the features and targets
-        #     for sample_label in unique_classes:
-        #             X_all.append(self.features_train[i][self.targets_train[i] == sample_label][:])
-        #             Y_all.append(self.targets_train[i][self.targets_train[i] == sample_label][:])
-        #
-        #     X_all_train = np.vstack(X_all)
-        #     Y_all_train = np.hstack(Y_all)
-        #     self.all_model = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1,
-        #                                             criterion='gini',
-        #                                             class_weight='balanced_subsample'
-        #                                             )
-        #     self.all_model.fit(X_all_train, Y_all_train)
-        #     # if not self.software == 'CALMS21 (PAPER)':
-        #     #     # predict = frameshift_predict(data_test, len(data_test), scalar,
-        #     #     #                              self.all_model, framerate=self.frames2integ)
-        #     #     predict = bsoid_predict_numba_noscale([self.features_heldout[i]], self.all_model)
-        #     #     predict = np.hstack(predict)
-        #     # else:
-        #     #     predict = frameshift_predict(data_test, len(data_test), scalar,
-        #     #                                  self.all_model, framerate=120)
-        #     #
-        #     predict = bsoid_predict_numba_noscale([self.features_heldout[i]], self.all_model)
-        #     predict = np.hstack(predict)
-        #
-        #     # check f1 scores per class, always exclude other (unlabeled data)
-        #     self.all_f1_scores.append(f1_score(
-        #         self.targets_heldout[i][self.targets_heldout[i] != self.label_code_other],
-        #         predict[self.targets_heldout[i] != self.label_code_other],
-        #         average=None))
-        #     # check f1 scores overall
-        #     self.all_macro_scores.append(f1_score(
-        #         self.targets_heldout[i][self.targets_heldout[i] != self.label_code_other],
-        #         predict[self.targets_heldout[i] != self.label_code_other],
-        #         average='macro'))
-        #     self.all_predict_prob.append(
-        #         self.all_model.predict_proba(self.features_train[i][self.targets_train[i] != self.label_code_other]
-        #                                      ))
-        #     self.all_X_train.append(X_all_train)
-        #     self.all_Y_train.append(Y_all_train)
-
-        # for i in range(len(self.features_train)):
-        # X = []
-        # Y = []
-        #
-        # # find the available amount of samples in the trainset,
-        # # take only the initial ratio and only classes that are in test
-        # # this returns 0 for samples that are not available
-        # samples2train = [int(np.sum(self.targets_train[i] == b) * self.init_ratio)
-        #                  for b in unique_classes]
-        #
-        # # go through each class and select the number of samples from the features and targets
-        # for n_samples, sample_label in zip(samples2train, unique_classes):
-        #     # if there are samples in the train
-        #     if n_samples > 0:
-        #         X.append(self.features_train[i][self.targets_train[i] == sample_label][:n_samples])
-        #         Y.append(self.targets_train[i][self.targets_train[i] == sample_label][:n_samples])
-        #
-        # X_train = np.vstack(X)
-        # Y_train = np.hstack(Y)
-        # self.iter0_model = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1,
-        #                                           criterion='gini',
-        #                                           class_weight='balanced_subsample'
-        #                                           )
-        # self.iter0_model.fit(X_train, Y_train)
-        # # test on remaining held out data
-        # # if not self.software == 'CALMS21 (PAPER)':
-        # #     # predict = frameshift_predict(data_test, len(data_test), scalar,
-        # #     #                              self.iter0_model, framerate=self.frames2integ)
-        # #     predict = bsoid_predict_numba_noscale([self.features_heldout[i]], self.iter0_model)
-        # #     predict = np.hstack(predict)
-        # # else:
-        # #     predict = frameshift_predict(data_test, len(data_test), scalar,
-        # #                                  self.iter0_model, framerate=120)
-        #
-        # predict = bsoid_predict_numba_noscale([self.features_heldout[i]], self.iter0_model)
-        # predict = np.hstack(predict)
-        #
-        # # check f1 scores per class
-        # self.iter0_f1_scores.append(f1_score(
-        #     self.targets_heldout[i][self.targets_heldout[i] != self.label_code_other],
-        #     predict[self.targets_heldout[i] != self.label_code_other],
-        #     average=None))
-        #
-        # # check f1 scores overall
-        # self.iter0_macro_scores.append(f1_score(
-        #     self.targets_heldout[i][self.targets_heldout[i] != self.label_code_other],
-        #     predict[self.targets_heldout[i] != self.label_code_other],
-        #     average='macro'))
-        # self.iter0_predict_prob.append(self.iter0_model.predict_proba(
-        #     self.features_train[i][self.targets_train[i] != self.label_code_other]
-        #     ))
-        # self.iter0_X_train.append(X_train)
-        # self.iter0_Y_train.append(Y_train)
 
     def show_subsampled_performance(self):
         behavior_classes = self.annotation_classes
@@ -559,10 +441,8 @@ class RF_Classify:
                 # model initialization
                 # X_train_it.append(X_train[it])
                 # Y_train_it.append(Y_train[it])
-                self.iterX_model = RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1,
-                                                          criterion='gini',
-                                                          class_weight='balanced_subsample'
-                                                          )
+                self.iterX_model = self.init_cl()
+                # model training
                 self.iterX_model.fit(X_train, Y_train)
                 predict = bsoid_predict_numba_noscale([self.features_heldout], self.iterX_model)
                 predict = np.hstack(predict)
@@ -588,14 +468,6 @@ class RF_Classify:
                     average='macro'
                     , labels=np.unique(curr_targets))
 
-                # curr_f1_scores = f1_score(
-                #     self.targets_heldout[self.targets_heldout != self.label_code_other]
-                #     , predict[self.targets_heldout != self.label_code_other]
-                #     , average=None)
-                # curr_macro_scores = f1_score(
-                #     self.targets_heldout[self.targets_heldout != self.label_code_other],
-                #     predict[self.targets_heldout != self.label_code_other],
-                #     average='macro')
 
                 self.iterX_f1_scores_list.append(curr_f1_scores)
                 self.iterX_macro_scores_list.append(curr_macro_scores)
@@ -605,38 +477,6 @@ class RF_Classify:
                 len_low_conf = len(np.where(compute_confidence(self.iterX_predict_prob_list[-1]) < self.conf_threshold)[0])
                 if np.min(len_low_conf) > 0:
                     self.show_training_performance(it + 1)
-
-
-
-                # iterX_f1_scores[it] = f1_score(
-                #     self.targets_heldout[self.targets_heldout != self.label_code_other],
-                #     predict[self.targets_heldout != self.label_code_other],
-                #     average=None)
-                # self.iterX_f1_scores_list.append(f1_score(
-                #     self.targets_heldout[self.targets_heldout != self.label_code_other],
-                #     predict[self.targets_heldout != self.label_code_other],
-                #     average=None))
-                # iterX_macro_scores[it] = f1_score(
-                #     self.targets_heldout[self.targets_heldout != self.label_code_other],
-                #     predict[self.targets_heldout != self.label_code_other],
-                #     average='macro')
-                # # iterX_macro_scores_it.append(iterX_macro_scores[it])
-                # iterX_predict_prob[it] = self.iterX_model.predict_proba(
-                #     self.features_train[self.targets_train != self.label_code_other]
-                # )
-
-                # iterX_predict_prob_it.append(iterX_predict_prob[it])
-
-                # len_low_conf = [len(np.where(iterX_predict_prob[ii].max(1) < self.conf_threshold)[0])
-                #                 for ii in range(len(iterX_predict_prob))]
-                # if len(iterX_f1_scores) != 0 and np.min(len_low_conf) > 0:
-                #     # self.iterX_X_train_list.append(X_train[it])
-                #     # self.iterX_Y_train_list.append(Y_train[it])
-                #     # self.iterX_f1_scores_list.append(iterX_f1_scores)
-                #     # self.iterX_macro_scores_list.append(iterX_macro_scores_it)
-                #     # self.iterX_predict_prob_list.append(iterX_predict_prob_it)
-                #     # self.sampled_idx_list.append(sampled_idx)
-                #     self.show_training_performance(it + 1)
 
                 else:
                     st.success('The model did the best it could, no more confusing samples. Saving your progress...')
