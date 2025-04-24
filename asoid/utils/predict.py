@@ -1,6 +1,5 @@
 import math
 import numpy as np
-from stqdm import stqdm
 
 from asoid.utils.extract_features_2D import bsoid_extract_numba
 from asoid.utils.extract_features_3D import asoid_extract_numba_3d
@@ -65,7 +64,7 @@ def bsoid_predict_proba_numba_noscale(scaled_feats, clf):
 def frameshift_predict(data_test, num_test, scaler, rf_model, framerate=30):
     labels_fs = []
     new_predictions = []
-    for i in stqdm(range(num_test), desc="Predicting behaviors from files"):
+    for i in range(num_test):
         feats_new = bsoid_extract_numba([data_test[i]], framerate)
         labels = asoid_predict_numba(feats_new, scaler, rf_model)
         for m in range(0, len(labels)):
@@ -112,7 +111,7 @@ def frameshift_predict_proba(data_test, num_test, scaler, rf_model, framerate=12
     proba_fs = []
     new_predictions = []
     new_proba = []
-    for i in stqdm(range(num_test), desc="Predicting behaviors and probability from files"):
+    for i range(num_test):
         feats_new = bsoid_extract_numba([data_test[i]], framerate)
         labels, proba = bsoid_predict_proba_numba(feats_new, scaler, rf_model)
         for m in range(0, len(labels)):
