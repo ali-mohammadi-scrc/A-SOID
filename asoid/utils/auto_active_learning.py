@@ -22,8 +22,8 @@ def get_confidence_calc(k):
     'max - min': lambda predictions: np.max(predictions, axis=1) - np.min(predictions, axis=1),
     'max - mean': lambda predictions: np.max(predictions, axis=1) - np.mean(predictions, axis=1),
     'max - median': lambda predictions: np.max(predictions, axis=1) - np.median(predictions, axis=1),
-    'max - 25th percentile': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 25, axis=1),
-    'max - 75th percentile': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 75, axis=1),
+    'max - 25p': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 25, axis=1),
+    'max - 75p': lambda predictions: np.max(predictions, axis=1) - np.percentile(predictions, 75, axis=1),
     }
 
     assert k in confidence_lot, f"Invalid option {k}. Available options are: {list(confidence_lot.keys())}"
