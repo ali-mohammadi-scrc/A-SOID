@@ -2,11 +2,11 @@ import os
 
 import numpy as np
 import streamlit as st
-from config.help_messages import *
-from utils.auto_active_learning import show_classifier_results, RF_Classify, get_available_conf_options
-from utils.load_workspace import load_features, load_heldout, \
+from asoid.config.help_messages import *
+from asoid.utils.auto_active_learning import show_classifier_results, RF_Classify, get_available_conf_options
+from asoid.utils.load_workspace import load_features, load_heldout, \
     load_iter0, load_iterX, load_all_train
-from utils.project_utils import update_config
+from asoid.utils.project_utils import update_config
 
 TITLE = "Active learning"
 ACTIVE_LEARNING_HELP = ("In this step, you will train a classifier using a small set of labeled data and then small portions of the remaining training data are fed to the classifier for several iterations."
@@ -80,7 +80,7 @@ def prompt_setup(software, train_fx, conf, conf_type,
     available_conf_types = get_available_conf_options()
     #turn dict into nice string in markdown
     conf_types_str = "\n".join([f"{k}: {available_conf_types[k]['description']} \n" for k in available_conf_types.keys()])
-    CONFIDENCE_TYPE_HELP = ("Confidence type to use for the classifier. \n\n" \
+    CONFIDENCE_TYPE_HELP = ("Confidence type to use for the active learning regime (low-confidence/uncertainty sampling). \n\n" \
                             "The confidence type is used to determine the confidence of the classifier in its predictions. \n" \
                             "The probability ouput of clf.predict_proba(X) is used to calculate the confidence. See \n\n" \
                             "Available types: \n\n" \
@@ -185,6 +185,8 @@ def main(ri=None, config=None):
                                                 , st.session_state['conf_type']
                                                 , st.session_state['conf_threshold'])
                     rf_classifier.main()
+                    col_left, _, col_right = st.columns([1, 1, 1])
+                    col_right.success("Continue on with next module".upper())
         except FileNotFoundError:
             # make sure the features were extracted:
 
@@ -202,6 +204,8 @@ def main(ri=None, config=None):
                                                 , st.session_state['conf_type']
                                                 , st.session_state['conf_threshold'])
                     rf_classifier.main()
+                    col_left, _, col_right = st.columns([1, 1, 1])
+                    col_right.success("Continue on with next module".upper())
             except FileNotFoundError:
                 st.error(NO_FEATURES_HELP)
         st.session_state['page'] = 'Step 4'

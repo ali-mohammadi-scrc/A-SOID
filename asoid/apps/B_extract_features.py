@@ -1,10 +1,10 @@
 import streamlit as st
 import numpy as np
 import os
-from utils.project_utils import update_config
-from utils.load_workspace import load_data, load_features
-from utils.extract_features import Extract, interactive_durations_dist
-from config.help_messages import *
+from asoid.utils.project_utils import update_config
+from asoid.utils.load_workspace import load_data, load_features
+from asoid.utils.extract_features import Extract, interactive_durations_dist
+from asoid.config.help_messages import *
 
 TITLE = "Extract features"
 
@@ -104,6 +104,9 @@ def main(config=None):
                 if st.button('Extract Features', help = EXTRACT_FEATURES_HELP):
                     extractor = Extract(working_dir, prefix, frames2integ, is_3d)
                     extractor.main()
+                    col_left, _, col_right = st.columns([1, 1, 1])
+                    col_right.success("Continue on with next module".upper())
+
         except FileNotFoundError:
             try:
                 prompt_container = st.container()
@@ -113,6 +116,9 @@ def main(config=None):
                 if st.button('Extract Features'):
                     extractor = Extract(working_dir, prefix, frames2integ, is_3d)
                     extractor.main()
+                    col_left, _, col_right = st.columns([1, 1, 1])
+                    col_right.success("Continue on with next module".upper())
+
             except FileNotFoundError:
                 st.info(SPLIT_PROJECT_HELP)
         st.session_state['page'] = 'Step 3'

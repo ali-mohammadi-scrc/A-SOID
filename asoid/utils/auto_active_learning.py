@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 import os
 from sklearn.metrics import f1_score
 import matplotlib.colors as mcolors
+
 from asoid.utils.predict import frameshift_predict, bsoid_predict_numba, bsoid_predict_numba_noscale
 from asoid.utils.load_workspace import load_features, load_test, save_data
 

@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 import re
 import streamlit as st
-from utils.preprocessing import adp_filt
-from utils.import_data import load_pose, get_bodyparts, get_animals, load_labels
-from utils.project_utils import create_new_project, update_config
-from config.help_messages import *
+from asoid.utils.preprocessing import adp_filt
+from asoid.utils.import_data import load_pose, get_bodyparts, get_animals, load_labels
+from asoid.utils.project_utils import create_new_project, update_config
+from asoid.config.help_messages import *
 
 
 def convert_int(s):

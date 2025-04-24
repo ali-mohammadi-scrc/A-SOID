@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from config.help_messages import *
+
 from sklearn.preprocessing import LabelEncoder
 from stqdm import stqdm
 from asoid.utils.extract_features_2D import feature_extraction
@@ -20,6 +20,7 @@ from asoid.utils.predict import bsoid_predict_numba_noscale, bsoid_predict_proba
 from asoid.utils.load_workspace import load_new_pose, load_iterX
 from asoid.utils.preprocessing import adp_filt, sort_nicely
 from asoid.utils.import_data import load_pose
+from asoid.config.help_messages import *
 
 from asoid.utils.reporting import extract_descriptors, prep_labels_single
 
