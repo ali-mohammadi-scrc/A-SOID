@@ -1,9 +1,11 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
 import os
+import plotly.express as px
+import plotly.graph_objects as go
 
 import matplotlib.colors as mcolors
-import plotly.express as px
 
 from asoid.utils.project_utils import update_config
 from asoid.utils.load_workspace import load_data, load_features
@@ -206,7 +208,8 @@ def main(config=None):
                                  working_dir, prefix)
                 if st.button('Extract Features', help = EXTRACT_FEATURES_HELP):
                     extractor = Extract(working_dir, prefix, frames2integ, is_3d)
-                    extractor.main()
+                    with st.spinner('Extracting features...'):
+                        extractor.main()
                     col_left, _, col_right = st.columns([1, 1, 1])
                     col_right.success("Continue on with next module".upper())
 
@@ -218,7 +221,8 @@ def main(config=None):
                                  annotation_classes, working_dir, prefix)
                 if st.button('Extract Features'):
                     extractor = Extract(working_dir, prefix, frames2integ, is_3d)
-                    extractor.main()
+                    with st.spinner('Extracting features...'):
+                        extractor.main()
                     col_left, _, col_right = st.columns([1, 1, 1])
                     col_right.success("Continue on with next module".upper())
 

@@ -625,6 +625,7 @@ def main(ri=None, config=None):
                                  framerate, videos_dir, project_dir, iter_folder)
                     if st.session_state['pose'] is not None:
                         placeholder = st.empty()
+                        
                         predict_annotate_video(ftype, software, is_3d, multi_animal, selected_bodyparts, llh_value,
                                                iterX_model, framerate, frames2integ,
                                                annotation_classes,
