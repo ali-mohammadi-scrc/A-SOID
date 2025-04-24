@@ -111,7 +111,7 @@ def frameshift_predict_proba(data_test, num_test, scaler, rf_model, framerate=12
     proba_fs = []
     new_predictions = []
     new_proba = []
-    for i range(num_test):
+    for i in range(num_test):
         feats_new = bsoid_extract_numba([data_test[i]], framerate)
         labels, proba = bsoid_predict_proba_numba(feats_new, scaler, rf_model)
         for m in range(0, len(labels)):
