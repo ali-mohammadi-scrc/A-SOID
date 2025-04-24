@@ -2,13 +2,14 @@ import numpy as np
 import streamlit as st
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import plotly.offline as py
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 import os
 from sklearn.metrics import f1_score
 import matplotlib.colors as mcolors
-from utils.predict import frameshift_predict, bsoid_predict_numba, bsoid_predict_numba_noscale
-from utils.load_workspace import load_features, load_test, save_data
+from asoid.utils.predict import frameshift_predict, bsoid_predict_numba, bsoid_predict_numba_noscale
+from asoid.utils.load_workspace import load_features, load_test, save_data
 
 def get_confidence_calc(k):
     """ Returns function to calculate confidence based on the selected option.
@@ -160,9 +161,16 @@ class RF_Classify:
                  , annotation_classes
                  , exclude_other
                  , conf_type: str = 'max'
-                 , conf_threshold: float = 0.5):
-        self.container = st.container()
-        self.placeholder = self.container.empty()
+                 , conf_threshold: float = 0.5
+                 , mode: str = 'app'):
+
+        self.mode = mode
+        if mode == 'app':
+            self.container = st.container()
+            self.placeholder = self.container.empty()
+        else:
+            self.container = None
+            self.placeholder = None
         self.working_dir = working_dir
         self.prefix = prefix
         self.project_dir = os.path.join(working_dir, prefix)
@@ -357,7 +365,14 @@ class RF_Classify:
                 color="white"
             )
         )
-        self.placeholder.plotly_chart(fig, use_container_width=True)
+        if self.mode == 'app':
+            self.placeholder.plotly_chart(fig, use_container_width=True)
+        elif self.mode == 'notebook':
+            #TODO: add plotly offline
+            pass
+        else:
+            #TODO: create print report:
+            pass
 
     def base_classification(self):
         with st.spinner("Subsampled classfication..."):
@@ -374,22 +389,12 @@ class RF_Classify:
         # print("All done.")
 
     def self_learn(self):
-        # X_train = dict()
-        # Y_train = dict()
-        # iterX_predict_prob = dict()
-        # iterX_macro_scores = dict()
-        # iterX_f1_scores = dict()
 
         compute_confidence = get_confidence_calc(self.conf_type)
 
         for it in range(self.max_iter):
             with st.spinner(f'Training iteration {it + 1}...'):
-                # st.info(f'Training iteration {it + 1}...'.upper())
-                # X_train_it = []
-                # Y_train_it = []
-                # iterX_predict_prob_it = []
-                # iterX_macro_scores_it = []
-                # iterX_f1_scores_it = []
+
                 sampled_idx = []
                 if it == 0:
                     # start with iter0 data (retrieve from above)
@@ -430,8 +435,6 @@ class RF_Classify:
                     Y_train = np.hstack(
                         (self.iterX_Y_train_list[it - 1], new_Y_sampled))
                 # model initialization
-                # X_train_it.append(X_train[it])
-                # Y_train_it.append(Y_train[it])
                 self.iterX_model = self.init_cl()
                 # model training
                 self.iterX_model.fit(X_train, Y_train)
@@ -466,17 +469,36 @@ class RF_Classify:
                     self.features_train[self.targets_train != self.label_code_other]))
                 self.sampled_idx_list.append(sampled_idx)
                 len_low_conf = len(np.where(compute_confidence(self.iterX_predict_prob_list[-1]) < self.conf_threshold)[0])
-                if np.min(len_low_conf) > 0:
-                    self.show_training_performance(it + 1)
+                
+                if self.mode == 'app':
+                    if np.min(len_low_conf) > 0:
+                        self.show_training_performance(it + 1)
 
-                else:
-                    st.success('The model did the best it could, no more confusing samples. Saving your progress...')
-                    self.save_final_model_info()
-                    break
-                if it == self.max_iter - 1:
-                    st.success("All iterations have been refined. Saving your progress...")
-                    # save the data on last time
-                    self.save_final_model_info()
+                    else:
+                        st.success('The model did the best it could, no more confusing samples. Saving your progress...')
+                        self.save_final_model_info()
+                        break
+                    if it == self.max_iter - 1:
+                        st.success("All iterations have been refined. Saving your progress...")
+                        # save the data on last time
+                        self.save_final_model_info()
+                elif self.mode == 'notebook':
+                    if np.min(len_low_conf) > 0:
+                        # self.show_training_performance(it + 1)
+                        #TODO: add plotly offline
+                        pass
+                    else:
+                        print('The model did the best it could, no more confusing samples. Saving your progress...')
+                        self.save_final_model_info()
+                        break
+                    if it == self.max_iter - 1:
+                        print("All iterations have been refined. Saving your progress...")
+                        # save the data on last time
+                        self.save_final_model_info()
+                else: 
+                    # TODO: create print report:
+                    pass
+
 
 
     def show_training_performance(self, it):
@@ -541,7 +563,17 @@ class RF_Classify:
                 color="white"
             )
         )
-        self.placeholder.plotly_chart(fig, use_container_width=True)
+        if self.mode == "app":
+            self.placeholder.plotly_chart(fig, use_container_width=True)
+        elif self.mode == "notebook":
+            #running in notebook
+            # py.iplot(fig, filename='training_performance')
+            #TODO: add plotly offline
+            pass
+        else:
+            #TODO: create print report:
+            pass
+
 
     def save_subsampled_info(self):
         save_data(self.project_dir, self.iter_dir, 'iter0.sav',
@@ -567,5 +599,3 @@ class RF_Classify:
     def main(self):
         self.base_classification()
         self.self_learn()
-        col_left, _, col_right = st.columns([1, 1, 1])
-        col_right.success("Continue on with next module".upper())

@@ -8,11 +8,11 @@ from scipy import stats
 
 
 
-from utils.extract_features_2D import feature_extraction
-from utils.extract_features_3D import feature_extraction_3d
+from asoid.utils.extract_features_2D import feature_extraction
+from asoid.utils.extract_features_3D import feature_extraction_3d
 
-from utils.load_workspace import load_data, save_data
-from config.help_messages import *
+from asoid.utils.load_workspace import load_data, save_data
+from asoid.config.help_messages import *
 
 
 def interactive_durations_dist(targets, behavior_classes, framerate, plot_container,
@@ -191,5 +191,3 @@ class Extract:
         self.extract_features()
         self.downsample_labels()
         self.save_features_targets()
-        col_left, _, col_right = st.columns([1, 1, 1])
-        col_right.success("Continue on with next module".upper())
