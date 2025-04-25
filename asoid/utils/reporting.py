@@ -2,12 +2,17 @@ import pandas as pd
 import numpy as np
 import datetime
 
-def convert_dummies_to_labels(labels, annotation_classes):
+pd.options.mode.copy_on_write = True # only for pandas< 3.0
+
+#TODO: fix this, count df only shows nans
+
+def convert_dummies_to_labels(labels_df, annotation_classes):
     """
     This function converts dummy variables to labels
     :param labels: pandas dataframe with dummy variables
     :return: pandas dataframe with labels and codes
     """
+    labels = labels_df.copy()
     conv_labels = pd.from_dummies(labels)
     cat_df = pd.DataFrame(conv_labels.values, columns=["labels"])
     if annotation_classes is not None:
@@ -18,12 +23,13 @@ def convert_dummies_to_labels(labels, annotation_classes):
 
     return cat_df
 
-def prep_labels_single(labels, annotation_classes):
+def prep_labels_single(label_df, annotation_classes):
     """
     This function loads the labels from a single file and prepares them for plotting
     :param labels: pandas dataframe with labels
     :return: pandas dataframe with labels
     """
+    labels = label_df.copy()
     labels = labels.drop(columns=["time"], errors="ignore")
     labels = convert_dummies_to_labels(labels, annotation_classes)
 
@@ -42,6 +48,7 @@ def count_events(df_label, annotation_classes):
     for label in annotation_classes:
 
         df_label_cp[label] = (df_label_cp["labels"] == label)
+        # df_label_cp[label].iloc[df_label_cp[label] == False] = np.NaN
         df_label_cp[label].iloc[df_label_cp[label] == False] = np.NaN
         # go through each unique label and count the number of isolated blocks
         df_label_cp[f"{label}_block"] = np.where(df_label_cp[label].notnull(),
@@ -59,6 +66,7 @@ def extract_descriptors(label_df, annotation_classes, framerate):
     :return: pandas dataframe with descriptors
     """
     df_label = label_df.copy()
+    print(df_label.head())
     # df_label = prep_labels_single(df_label, annotation_classes)
     event_counter = count_events(df_label, annotation_classes)
     count_df = df_label.value_counts().to_frame().reset_index()

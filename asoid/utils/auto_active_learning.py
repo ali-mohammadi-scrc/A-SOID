@@ -1,8 +1,8 @@
 import numpy as np
 import streamlit as st
 from plotly.subplots import make_subplots
+from plotly.offline import init_notebook_mode, iplot
 import plotly.graph_objects as go
-import plotly.offline as py
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 import os
@@ -11,6 +11,11 @@ import matplotlib.colors as mcolors
 
 from asoid.utils.predict import frameshift_predict, bsoid_predict_numba, bsoid_predict_numba_noscale
 from asoid.utils.load_workspace import load_features, load_test, save_data
+
+from stqdm import stqdm
+from tqdm import tqdm
+
+
 
 def get_confidence_calc(k):
     """ Returns function to calculate confidence based on the selected option.
@@ -172,6 +177,8 @@ class RF_Classify:
         else:
             self.container = None
             self.placeholder = None
+        if self.mode == 'notebook':
+            init_notebook_mode(connected=True)
         self.working_dir = working_dir
         self.prefix = prefix
         self.project_dir = os.path.join(working_dir, prefix)
@@ -221,6 +228,32 @@ class RF_Classify:
         self.perf_by_class = {k: [] for k in annotation_classes}
         self.perf2beat_by_class = {k: [] for k in annotation_classes}
 
+    def with_spinner(self, message, func, *args, **kwargs):
+        """
+        Wrapper for st.spinner to handle different modes.
+        :param message: Message to display in the spinner.
+        :param func: Function to execute.
+        :param args: Positional arguments for the function.
+        :param kwargs: Keyword arguments for the function.
+        :return: Result of the function execution.
+        """
+        if self.mode == 'app':
+            with st.spinner(message):
+                return func(*args, **kwargs)
+        else:
+            print(message)  # Print the message in notebook or other modes
+            return func(*args, **kwargs)
+
+    def show_success(self, message):
+        """
+        Show success message in the app mode.
+        :param message: Message to display.
+        """
+        if self.mode == 'app':
+            st.success(message)
+        else:
+            print(message)
+
     def init_cl(self):
         cl = RandomForestClassifier(n_estimators=200
                                     , random_state=42
@@ -235,7 +268,10 @@ class RF_Classify:
             load_features(self.project_dir, self.iter_dir)
 
         self.features_train, self.features_heldout, \
-            self.targets_train, self.targets_heldout = train_test_split(X, y, test_size=0.20, random_state=42)
+            self.targets_train, self.targets_heldout = train_test_split(X, y
+                                                                        , test_size=0.20
+                                                                        , random_state=42
+                                                                        )
 
 
     def subsampled_classify(self):
@@ -334,171 +370,127 @@ class RF_Classify:
             if c_name != behavior_classes[-1]:
                 self.perf_by_class[c_name].append(int(100 * round(self.iter0_f1_scores[c], 2)))
                 self.perf2beat_by_class[c_name].append(int(100 * round(self.all_f1_scores[c], 2)))
-        fig = make_subplots(rows=1, cols=1)
-        for c, c_name in enumerate(behavior_classes):
-            if c_name != behavior_classes[-1]:
-                fig.add_scatter(y=self.perf_by_class[c_name], mode='markers',
-                                marker=dict(color=default_colors[c]), name=c_name,
-                                row=1, col=1
-                                )
-        fig.add_scatter(y=np.repeat(100 * round(mean_scores2beat, 2), self.max_iter + 1),
-                        mode='lines',
-                        marker=dict(color='white', opacity=0.1),
-                        name='average (full data)',
-                        row=1, col=1
-                        )
-        fig.update_xaxes(range=[-.5, self.max_iter + .5],
-                         linecolor='dimgray', gridcolor='dimgray')
-        fig.update_yaxes(ticksuffix="%", linecolor='dimgray', gridcolor='dimgray')
-        fig.for_each_trace(
-            lambda trace: trace.update(line=dict(width=2, dash="dot"))
-            if trace.name == "average (full data)"
-            else (trace.update(line=dict(width=2))),
-        )
-        fig.update_layout(
-            title="",
-            xaxis_title=self.keys[2],
-            yaxis_title=self.keys[1],
-            legend_title=self.keys[0],
-            font=dict(
-                family="Arial",
-                size=14,
-                color="white"
+
+        if self.mode == 'notebook':
+            print("Baseline")
+            print("Subsampled performance: ", self.iter0_f1_scores)
+            print("Full data performance: ", self.all_f1_scores)
+            
+        elif self.mode == 'app':
+
+            fig = make_subplots(rows=1, cols=1)
+            for c, c_name in enumerate(behavior_classes):
+                if c_name != behavior_classes[-1]:
+                    fig.add_scatter(y=self.perf_by_class[c_name], mode='markers',
+                                    marker=dict(color=default_colors[c]), name=c_name,
+                                    row=1, col=1
+                                    )
+            fig.add_scatter(y=np.repeat(100 * round(mean_scores2beat, 2), self.max_iter + 1),
+                            mode='lines',
+                            marker=dict(color='white', opacity=0.1),
+                            name='average (full data)',
+                            row=1, col=1
+                            )
+            fig.update_xaxes(range=[-.5, self.max_iter + .5],
+                            linecolor='dimgray', gridcolor='dimgray')
+            fig.update_yaxes(ticksuffix="%", linecolor='dimgray', gridcolor='dimgray')
+            fig.for_each_trace(
+                lambda trace: trace.update(line=dict(width=2, dash="dot"))
+                if trace.name == "average (full data)"
+                else (trace.update(line=dict(width=2))),
             )
-        )
-        if self.mode == 'app':
+            fig.update_layout(
+                title="",
+                xaxis_title=self.keys[2],
+                yaxis_title=self.keys[1],
+                legend_title=self.keys[0],
+                font=dict(
+                    family="Arial",
+                    size=14,
+                    color="white"
+                )
+            )
             self.placeholder.plotly_chart(fig, use_container_width=True)
-        elif self.mode == 'notebook':
-            #TODO: add plotly offline
-            pass
-        else:
-            #TODO: create print report:
-            pass
+
 
     def base_classification(self):
-        with st.spinner("Subsampled classfication..."):
-            # print("Subsampled classfication...")
-            self.subsampled_classify()
+        self.with_spinner("Subsampled classification...", self.subsampled_classify)
+        self.with_spinner("Preparing plot...", self.show_subsampled_performance)
+        self.with_spinner("Saving training data...", self.save_all_train_info)
+        self.with_spinner("Saving subsampled data...", self.save_subsampled_info)
+        
+    def _train_iteration(self, it, compute_confidence):
+        sampled_idx = []
+        if it == 0:
+            # Start with iter0 data
+            X_train = self.iter0_X_train
+            Y_train = self.iter0_Y_train
+            idx_lowconf = np.where(compute_confidence(self.iter0_predict_prob) < self.conf_threshold)[0]
+        else:
+            idx_lowconf = np.where(compute_confidence(self.iterX_predict_prob_list[it - 1]) < self.conf_threshold)[0]
 
-        # print("Showing subsampled performance...")
-        with st.spinner("Preparing plot..."):
-            self.show_subsampled_performance()
-        with st.spinner("Saving training data..."):
-            self.save_all_train_info()
-        with st.spinner("Saving subsampled data..."):
-            self.save_subsampled_info()
-        # print("All done.")
+        # Identify low-confidence samples
+        new_X_human = self.features_train[self.targets_train != self.label_code_other][idx_lowconf, :]
+        new_Y_human = self.targets_train[self.targets_train != self.label_code_other][idx_lowconf]
+
+        np.random.seed(42)
+        try:
+            idx_sampled = np.random.choice(np.arange(idx_lowconf.shape[0]),
+                                        min(self.max_samples_iter, idx_lowconf.shape[0]),
+                                        replace=False)
+        except:
+            return
+
+        new_X_sampled = new_X_human[idx_sampled, :]
+        new_Y_sampled = new_Y_human[idx_sampled]
+        sampled_idx.append(idx_lowconf[idx_sampled])
+
+        if it == 0:
+            X_train = np.vstack((X_train, new_X_sampled))
+            Y_train = np.hstack((Y_train, new_Y_sampled))
+        else:
+            X_train = np.vstack((self.iterX_X_train_list[it - 1], new_X_sampled))
+            Y_train = np.hstack((self.iterX_Y_train_list[it - 1], new_Y_sampled))
+
+        # Train the model
+        self.iterX_model = self.init_cl()
+        self.iterX_model.fit(X_train, Y_train)
+        predict = bsoid_predict_numba_noscale([self.features_heldout], self.iterX_model)
+        predict = np.hstack(predict)
+
+        self.iterX_X_train_list.append(X_train)
+        self.iterX_Y_train_list.append(Y_train)
+
+        # Evaluate performance
+        flt_predict = predict[self.targets_heldout != self.label_code_other]
+        curr_targets = self.targets_heldout[self.targets_heldout != self.label_code_other]
+
+        curr_f1_scores = f1_score(curr_targets, flt_predict, average=None, labels=np.unique(curr_targets))
+        curr_macro_scores = f1_score(curr_targets, flt_predict, average='macro', labels=np.unique(curr_targets))
+
+        self.iterX_f1_scores_list.append(curr_f1_scores)
+        self.iterX_macro_scores_list.append(curr_macro_scores)
+        self.iterX_predict_prob_list.append(self.iterX_model.predict_proba(
+            self.features_train[self.targets_train != self.label_code_other]))
+        self.sampled_idx_list.append(sampled_idx)
 
     def self_learn(self):
-
         compute_confidence = get_confidence_calc(self.conf_type)
 
         for it in range(self.max_iter):
-            with st.spinner(f'Training iteration {it + 1}...'):
+            self.with_spinner(f'Training iteration {it + 1}...', self._train_iteration, it, compute_confidence)
 
-                sampled_idx = []
-                if it == 0:
-                    # start with iter0 data (retrieve from above)
-                    X_train = self.iter0_X_train
-                    Y_train = self.iter0_Y_train
-                    # retrieve iteration 0 predict probability
-                    idx_lowconf = np.where(compute_confidence(self.iter0_predict_prob) < self.conf_threshold)[0]
-                else:
-                    idx_lowconf = np.where(compute_confidence(self.iterX_predict_prob_list[it - 1]) < self.conf_threshold)[0]
-                    
-                # identify all features/targets that were low predict prob
-                new_X_human = self.features_train[self.targets_train != self.label_code_other][idx_lowconf, :]
-                new_Y_human = self.targets_train[self.targets_train != self.label_code_other][idx_lowconf]
-                
-                np.random.seed(42)
-                try:
-                    # attempt sampling up to max_samples_per iteration otherwise just grab all
-                    idx_sampled = np.random.choice(np.arange(idx_lowconf.shape[0]),
-                                                   min(self.max_samples_iter, idx_lowconf.shape[0]), 
-                                                   replace=False)
-                except:
-                    break
-
-                new_X_sampled = new_X_human[idx_sampled, :]
-                new_Y_sampled = new_Y_human[idx_sampled]
-                sampled_idx.append(idx_lowconf[idx_sampled])
-
-                if it == 0:
-                    # if iteration 1, we use iteration 0 as base, and append new samples
-                    X_train = np.vstack(
-                        (X_train, new_X_sampled))
-                    Y_train = np.hstack(
-                        (Y_train, new_Y_sampled))
-                else:
-                    # if iteration >1, we use previous iteration as base, and append new samples
-                    X_train = np.vstack(
-                        (self.iterX_X_train_list[it - 1], new_X_sampled))
-                    Y_train = np.hstack(
-                        (self.iterX_Y_train_list[it - 1], new_Y_sampled))
-                # model initialization
-                self.iterX_model = self.init_cl()
-                # model training
-                self.iterX_model.fit(X_train, Y_train)
-                predict = bsoid_predict_numba_noscale([self.features_heldout], self.iterX_model)
-                predict = np.hstack(predict)
-
-                self.iterX_X_train_list.append(X_train)
-                self.iterX_Y_train_list.append(Y_train)
-                # check f1 scores per class, always exclude other (unlabeled data)
-
-                flt_predict = predict[self.targets_heldout != self.label_code_other]
-                curr_targets = self.targets_heldout[self.targets_heldout != self.label_code_other]
-
-                # check f1 scores per class
-                curr_f1_scores = f1_score(
-                    curr_targets,
-                    flt_predict,
-                    average=None
-                    , labels=np.unique(curr_targets))
-
-                # check f1 scores overall
-                curr_macro_scores = f1_score(
-                    curr_targets,
-                    flt_predict,
-                    average='macro'
-                    , labels=np.unique(curr_targets))
-
-
-                self.iterX_f1_scores_list.append(curr_f1_scores)
-                self.iterX_macro_scores_list.append(curr_macro_scores)
-                self.iterX_predict_prob_list.append(self.iterX_model.predict_proba(
-                    self.features_train[self.targets_train != self.label_code_other]))
-                self.sampled_idx_list.append(sampled_idx)
-                len_low_conf = len(np.where(compute_confidence(self.iterX_predict_prob_list[-1]) < self.conf_threshold)[0])
-                
-                if self.mode == 'app':
-                    if np.min(len_low_conf) > 0:
-                        self.show_training_performance(it + 1)
-
-                    else:
-                        st.success('The model did the best it could, no more confusing samples. Saving your progress...')
-                        self.save_final_model_info()
-                        break
-                    if it == self.max_iter - 1:
-                        st.success("All iterations have been refined. Saving your progress...")
-                        # save the data on last time
-                        self.save_final_model_info()
-                elif self.mode == 'notebook':
-                    if np.min(len_low_conf) > 0:
-                        # self.show_training_performance(it + 1)
-                        #TODO: add plotly offline
-                        pass
-                    else:
-                        print('The model did the best it could, no more confusing samples. Saving your progress...')
-                        self.save_final_model_info()
-                        break
-                    if it == self.max_iter - 1:
-                        print("All iterations have been refined. Saving your progress...")
-                        # save the data on last time
-                        self.save_final_model_info()
-                else: 
-                    # TODO: create print report:
-                    pass
+            len_low_conf = len(np.where(compute_confidence(self.iterX_predict_prob_list[-1]) < self.conf_threshold)[0])
+        
+            if np.min(len_low_conf) > 0:
+                self.show_training_performance(it + 1)
+            else:
+                self.show_success('The model did the best it could, no more confusing samples. Saving your progress...')
+                self.save_final_model_info()
+                break
+            if it == self.max_iter - 1:
+                self.show_success("All iterations have been refined. Saving your progress...")
+                self.save_final_model_info()
 
 
 
@@ -520,60 +512,58 @@ class RF_Classify:
             if c_name != self.annotation_classes[-1]:
                 self.perf_by_class[c_name].append(int(100 * round(self.iterX_f1_scores_list[-1][c], 2)))
 
-        fig = make_subplots(rows=1, cols=1)
-        fig.add_scatter(y=np.repeat(100 * round(mean_scores2beat, 2), self.max_iter + 1),
-                        mode='lines',
-                        marker=dict(color='white', opacity=0.1),
-                        name='average (full data)',
-                        row=1, col=1
-                        )
-        for c, c_name in enumerate(self.annotation_classes):
-            if c_name != self.annotation_classes[-1]:
-                fig.add_scatter(y=self.perf_by_class[c_name], mode='lines+markers',
-                                marker=dict(color=default_colors[c]), name=c_name,
-                                row=1, col=1
-                                )
-                fig.add_scatter(y=np.repeat(100 * round(self.all_f1_scores[c], 2),
-                                            self.max_iter + 1), mode='lines',
-                                marker=dict(color=default_colors[c]), name=str.join('', (c_name, ' (full data)')),
-                                row=1, col=1
-                                )
-        fig.add_scatter(y=mean_scores, mode='lines+markers',
-                        marker=dict(color='gray', opacity=0.8),
-                        name='average',
-                        row=1, col=1
-                        )
-
-        fig.update_xaxes(range=[-.5, self.max_iter + .5],
-                         linecolor='dimgray', gridcolor='dimgray')
-        fig.update_yaxes(ticksuffix="%", linecolor='dimgray', gridcolor='dimgray')
-        fig.for_each_trace(
-            lambda trace: trace.update(line=dict(width=2, dash="dot"))
-            if trace.name.endswith('(full data)')
-            else (trace.update(line=dict(width=2))),
-        )
-        # fig.update_traces(line=dict(width=2))
-        fig.update_layout(
-            title="",
-            xaxis_title=self.keys[2],
-            yaxis_title=self.keys[1],
-            legend_title=self.keys[0],
-            font=dict(
-                family="Arial",
-                size=14,
-                color="white"
-            )
-        )
+        if self.mode == 'notebook':
+            print("Iteration ", it)
+            print("Subsampled performance: ", self.iterX_f1_scores_list[-1])
+        
         if self.mode == "app":
+
+            fig = make_subplots(rows=1, cols=1)
+            fig.add_scatter(y=np.repeat(100 * round(mean_scores2beat, 2), self.max_iter + 1),
+                            mode='lines',
+                            marker=dict(color='white', opacity=0.1),
+                            name='average (full data)',
+                            row=1, col=1
+                            )
+            for c, c_name in enumerate(self.annotation_classes):
+                if c_name != self.annotation_classes[-1]:
+                    fig.add_scatter(y=self.perf_by_class[c_name], mode='lines+markers',
+                                    marker=dict(color=default_colors[c]), name=c_name,
+                                    row=1, col=1
+                                    )
+                    fig.add_scatter(y=np.repeat(100 * round(self.all_f1_scores[c], 2),
+                                                self.max_iter + 1), mode='lines',
+                                    marker=dict(color=default_colors[c]), name=str.join('', (c_name, ' (full data)')),
+                                    row=1, col=1
+                                    )
+            fig.add_scatter(y=mean_scores, mode='lines+markers',
+                            marker=dict(color='gray', opacity=0.8),
+                            name='average',
+                            row=1, col=1
+                            )
+
+            fig.update_xaxes(range=[-.5, self.max_iter + .5],
+                            linecolor='dimgray', gridcolor='dimgray')
+            fig.update_yaxes(ticksuffix="%", linecolor='dimgray', gridcolor='dimgray')
+            fig.for_each_trace(
+                lambda trace: trace.update(line=dict(width=2, dash="dot"))
+                if trace.name.endswith('(full data)')
+                else (trace.update(line=dict(width=2))),
+            )
+            # fig.update_traces(line=dict(width=2))
+            fig.update_layout(
+                title="",
+                xaxis_title=self.keys[2],
+                yaxis_title=self.keys[1],
+                legend_title=self.keys[0],
+                font=dict(
+                    family="Arial",
+                    size=14,
+                    color="white"
+                )
+            )
             self.placeholder.plotly_chart(fig, use_container_width=True)
-        elif self.mode == "notebook":
-            #running in notebook
-            # py.iplot(fig, filename='training_performance')
-            #TODO: add plotly offline
-            pass
-        else:
-            #TODO: create print report:
-            pass
+
 
 
     def save_subsampled_info(self):
