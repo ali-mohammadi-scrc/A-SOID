@@ -53,17 +53,18 @@ def _convert_predictions(predictions, annotation_classes, framerate):
     :return: DataFrame of predictions"""
     # convert to pandas dataframe
     df = pd.DataFrame(predictions, columns=["labels"])
-    time_clm = np.round(np.arange(0, df.shape[0]) / framerate, 2)
-    # convert numbers into behavior names
-    class_dict = {i: x for i, x in enumerate(annotation_classes)}
-    df["classes"] = df["labels"].copy()
-    for cl_idx, cl_name in class_dict.items():
-        df["classes"].iloc[df["labels"] == cl_idx] = cl_name
+    time_clm = np.round(np.arange(0, df.shape[0]) / framerate, 3)
 
     # for simplicity let's convert this back into BORIS type file
-    dummy_df = pd.get_dummies(df["classes"]).astype(int)
+    dummy_df = pd.get_dummies(df["labels"])
+
+    #rename columns to match the classes
+    dummy_df.columns = [annotation_classes[int(x)] for x in dummy_df.columns]
+    #remove the first column
+    dummy_df = dummy_df.drop(columns=[dummy_df.columns[0]])
+
     # add 0 columns for each class that wasn't predicted in the file
-    not_predicted_classes = [x for x in annotation_classes if x not in np.unique(df["classes"].values)]
+    not_predicted_classes = [x for x in annotation_classes if x not in np.unique(dummy_df.columns)]
     for not_predicted_class in not_predicted_classes:
         dummy_df[not_predicted_class] = 0
 
@@ -72,6 +73,22 @@ def _convert_predictions(predictions, annotation_classes, framerate):
     
     return dummy_df
 
+def _convert_predictions_proba(predictions_proba, annotation_classes, framerate):
+    """takes numerical labels and adds timestamps (in BORIS style). However, this is not a one-hot encoded file, but saves the probabilities for each class.
+    :param predictions: list of prediction probabilities
+    :param annotation_classes: list of annotation classes
+    :param framerate: framerate of the video
+    :return: DataFrame of predictions"""
+    # convert to pandas dataframe
+    df = pd.DataFrame(predictions_proba, columns=annotation_classes)
+    time_clm = np.round(np.arange(0, df.shape[0]) / framerate, 3)
+    # convert numbers into behavior names
+
+    df["time"] = time_clm
+    df = df.set_index("time")
+    
+    return df
+
 def _save_predictions(predictions_df, output_filename):
     """ Save the predictions to a file.
     :param predictions_df: DataFrame of predictions.
@@ -79,7 +96,7 @@ def _save_predictions(predictions_df, output_filename):
     :return: None
     """
     # save predictions
-    predictions_df.to_csv(output_filename, index=False)
+    predictions_df.to_csv(output_filename)
     print(f"Predictions saved to {output_filename}")
 
 def _report(pred_df, annotation_classes, framerate):
@@ -393,47 +410,82 @@ class Predictor:
         pass
 
 
-    def save_predictions(self, output_type = "smooth"):
+    def save_predictions(self, output_types = ["smooth"], output_dir = None):
         """ Save the predictions to a file in BORIS style.
+        :param output_types: Types of output ("raw", "smooth", "proba"). Default is "smooth". If "raw", save the raw predictions. If "smooth", save the smoothed predictions. If "proba", save the probabilities.
+        Can be a list of types. If "all", save all types.
+        :param output_dir: Directory to save the predictions. Default is None, which means the default directory from the config file is used.
         :return: None
         """
+        if output_types == "all":
+                output_types = ["raw", "smooth", "proba"]
+
         # save predictions
         for i in range(len(self.predictions_raw)):
 
-            if output_type == "raw":
-                predictions = self.predictions_raw[i]
-            elif output_type == "smooth":
-                predictions = self.predictions_match[i]
-            # convert predictions to pandas dataframe in BORIS style            
-            pred_df = _convert_predictions(predictions, self.annotation_classes, self.framerate)
             # save predictions
             curr_file_name = self.new_pose_csvs[i]
             curr_file_name = os.path.basename(curr_file_name)
             curr_file_name = os.path.splitext(curr_file_name)[0]
-            output_filename = os.path.join(self.project_dir, self.iter_folder, curr_file_name + "_predictions.csv")
 
-            _save_predictions(pred_df, output_filename)
+            # check if output_types is a list
+            if isinstance(output_types, str):
+                output_types = [output_types]
+
+            for o_type in output_types:
+                if o_type not in ["raw", "smooth", "proba"]:
+                    raise ValueError(f"Output type {o_type} is not valid. Must be one of ['raw', 'smooth', 'proba']")
+
+                if o_type == "raw":
+                    predictions = self.predictions_raw[i]
+                    # convert predictions to pandas dataframe in BORIS style            
+                    pred_df = _convert_predictions(predictions, self.annotation_classes, self.framerate)
+                    
+                elif o_type == "smooth":
+                    predictions = self.predictions_match[i]# convert predictions to pandas dataframe in BORIS style            
+                    pred_df = _convert_predictions(predictions, self.annotation_classes, self.framerate)
+                    
+                elif o_type == "proba":
+                    predictions = self.predictions_proba[i]
+                    pred_df = _convert_predictions_proba(predictions, self.annotation_classes, self.framerate)
+                
+                if output_dir is None:
+                    output_filename = os.path.join(self.project_dir, self.iter_folder, curr_file_name + f"_predictions_{o_type}.csv")
+                else:
+                    os.makedirs(output_dir, exist_ok=True)
+                    # check if output_dir is a valid directory
+                    if not os.path.isdir(output_dir):
+                        raise ValueError(f"Output directory {output_dir} is not a valid directory.")
+                    output_filename = os.path.join(output_dir, curr_file_name + f"_predictions_{o_type}.csv")
 
 
-def predict(config, path_list, smooth_size = 0, save_predictions = True, export_proba = False, verbose = False):
+                # save predictions
+                _save_predictions(pred_df, output_filename)
+
+
+def predict(config, path_list
+            , smooth_size = 0
+            , save_predictions = True
+            , output_dir = None
+            , output_types = "smooth"
+            , verbose = False):
     """ Predict the behavior from pose data and returns raw and smoothed output.
     :param config: Configuration object.
     :param path_list: List of paths to pose files.
     :param smooth_size: Size of the smoothing window. If 0, no smoothing is applied. Default is 0.
     :param save_predictions: If True, save the predictions to csv file in BORIS style at location. Default is True.
-    :param export_proba: If True, export the probabilities of the predictions. Default is False.
+    :param output_dir: Directory to save the predictions. Default is None, which means the default directory from the config file is used.
+    :param output_types: Types of output ("raw", "smooth", "proba"). Default is "smooth". If "raw", save the raw predictions. If "smooth", save the smoothed predictions. If "proba", save the probabilities.
+    Can be a list of types. If "all", save all types.
     :param verbose: If True, print the a report for each prediction. Default is False.
-    :return: predictions_raw, predictions_match: List of predictions per file (raw and smoothed). If export_proba is True, also returns probabilities.
+    :return: predictions_raw, predictions_match, prediction_proba: List of predictions per file (raw, smoothed, and probabilities). 
     """
+
     predictor = Predictor(config, verbose=verbose)
     predictor.extract_features(path_list)
     predictor.predict(smooth_size=smooth_size)
     
     if save_predictions:
-        predictor.save_predictions()
+        predictor.save_predictions(output_dir = output_dir, output_types = output_types)
     
-    if not export_proba:
-        
-        return predictor.predictions_raw, predictor.predictions_match   
-    else:
-        return predictor.predictions_raw, predictor.predictions_match, predictor.predictions_proba
+    return predictor.predictions_raw, predictor.predictions_match, predictor.predictions_proba
