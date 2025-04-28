@@ -414,11 +414,19 @@ class Predictor:
         """ Save the predictions to a file in BORIS style.
         :param output_types: Types of output ("raw", "smooth", "proba"). Default is "smooth". If "raw", save the raw predictions. If "smooth", save the smoothed predictions. If "proba", save the probabilities.
         Can be a list of types. If "all", save all types.
-        :param output_dir: Directory to save the predictions. Default is None, which means the default directory from the config file is used.
+        :param output_dir: Directory or list of directories to save the predictions. Default is None, which means the default directory from the config file is used.
         :return: None
         """
         if output_types == "all":
                 output_types = ["raw", "smooth", "proba"]
+        
+        # check if output_dir is a list
+        if output_dir is not None:
+            if isinstance(output_dir, str):
+                output_dir = [output_dir] * len(self.new_pose_csvs)
+            elif len(output_dir) != len(self.new_pose_csvs):
+                raise ValueError(f"Output directory list must be the same length as the number of files. {len(output_dir)} != {len(self.new_pose_csvs)}")
+
 
         # save predictions
         for i in range(len(self.predictions_raw)):
@@ -452,11 +460,12 @@ class Predictor:
                 if output_dir is None:
                     output_filename = os.path.join(self.project_dir, self.iter_folder, curr_file_name + f"_predictions_{o_type}.csv")
                 else:
-                    os.makedirs(output_dir, exist_ok=True)
-                    # check if output_dir is a valid directory
-                    if not os.path.isdir(output_dir):
-                        raise ValueError(f"Output directory {output_dir} is not a valid directory.")
-                    output_filename = os.path.join(output_dir, curr_file_name + f"_predictions_{o_type}.csv")
+                    curr_output_dir = output_dir[i]
+                    os.makedirs(curr_output_dir, exist_ok=True)
+                    # check if curr_output_dir is a valid directory
+                    if not os.path.isdir(curr_output_dir):
+                        raise ValueError(f"Output directory {curr_output_dir} is not a valid directory.")
+                    output_filename = os.path.join(curr_output_dir, curr_file_name + f"_predictions_{o_type}.csv")
 
 
                 # save predictions
