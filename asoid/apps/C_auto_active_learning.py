@@ -36,7 +36,7 @@ def prompt_setup(software, train_fx, conf, conf_type,
     min_samples = 10
     smallest_class_num = np.min(data_samples_per)
     min_ratio_ = np.round(min_samples / smallest_class_num, 2)
-    max_samps_iter = np.ceil(len(data_samples_per) * 10).astype(int)
+    max_samps_iter = np.ceil(len(data_samples_per) * 100).astype(int)
 
     if not np.all(data_samples_per) or smallest_class_num < min_samples:
         # if any selected class has no labels in the dataset, throw an error (very rare cases).
@@ -69,7 +69,7 @@ def prompt_setup(software, train_fx, conf, conf_type,
     col1_exp.info('Initial samples to train per class: \n\n' + ";  ".join(info_text))
     max_iter = col2_exp.number_input('Max number of self-learning iterations',
                                      min_value=1, max_value=None,
-                                     value=100, key='maxi3', help=MAX_ITER_HELP)
+                                     value=50, key='maxi3', help=MAX_ITER_HELP)
     max_samples_iter = col2_bot_exp.number_input(f'Max samples amongst the '
                                                  f'{len(data_samples_per)} classes',
                                                  min_value=max_samps_iter, max_value=None,
