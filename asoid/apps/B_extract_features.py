@@ -28,6 +28,21 @@ EXTRACT_FEATURES_HELP = ("In this step, you will extract features from the label
 
 def interactive_durations_dist(targets, behavior_classes, framerate, plot_container,
                                num_bins, split_by_class=True):
+    # Ali: the approach used for finding bouts of behaviors and their durations, always misses the last bout.
+    # raises error if one file has only one behavior throughout the sequence.
+    # TBD: move this to utils
+    def sequence_to_intervals(seq):
+        '''
+        Input:
+            sequence: 1D numpy array of behavior labels with values >= 0
+        Output:
+            intervals: Nx2 numpy array of start and end indices for each behavior bout (right exclusive)
+        '''
+        padded_seq = np.pad(seq, (1, 1), constant_values=-1) # assuming -1 is not in seq
+        change_points = np.where(np.diff(padded_seq) != 0)[0]
+        intervals = np.vstack((change_points[:-1], change_points[1:])).T
+        intervals_class = seq[intervals[:, 0]]
+        return intervals, intervals_class
     # Add histogram data
     plot_col, option_col = plot_container.columns([3, 1])
     option_col.write('')
@@ -64,12 +79,14 @@ def interactive_durations_dist(targets, behavior_classes, framerate, plot_contai
             colors = [behavior_colors[class_id] for class_id in ['All']]
 
     duration_dict = {k: [] for k in behavior_classes}
-    durations = []
-    corr_targets = []
-    for seq in range(len(targets)):
-        durations.append(np.diff(np.hstack((0, np.where(np.diff(targets[seq]) != 0)[0] + 1))))
-        corr_targets.append(targets[seq][
-                                np.hstack((0, np.where(np.diff(targets[seq]) != 0)[0] + 1))][:durations[seq].shape[0]])
+    # Ali: The following 3 lines replace the next 4 commented out lines
+    all_intervals = list(map(sequence_to_intervals, targets))
+    durations = list(map(lambda x: x[0][:, 1] - x[0][:, 0], all_intervals))
+    corr_targets = list(map(lambda x: x[1], all_intervals))
+    # for seq in range(len(targets)):
+    #     durations.append(np.diff(np.hstack((0, np.where(np.diff(targets[seq]) != 0)[0] + 1))))
+    #     corr_targets.append(targets[seq][
+    #                             np.hstack((0, np.where(np.diff(targets[seq]) != 0)[0] + 1))][:durations[seq].shape[0]])    
     for seq in range(len(durations)):
         current_seq_durs = durations[seq]
         for unique_beh in np.unique(np.hstack(corr_targets)):
