@@ -12,7 +12,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, label_binarize
 from stqdm import stqdm
 from asoid.utils.extract_features_2D import feature_extraction
 from asoid.utils.extract_features_3D import feature_extraction_3d
@@ -520,27 +520,45 @@ def just_annotate_video(predict_npy, framerate,
                 #TODO: Find suitable replacement for manual refresh
                 #st.rerun()
 
+# Ali: The following function always uses the class number instead of class names to save the csv file
+# def save_predictions(predict_npy, source_file_name, annotation_classes, framerate):
+#     """takes numerical labels and transforms back into one-hot encoded file (BORIS style). Saves as csv"""
+#     predict = np.load(predict_npy, allow_pickle=True)
+
+#     df = pd.DataFrame(predict, columns=["labels"])
+#     time_clm = np.round(np.arange(0, df.shape[0]) / framerate, 2)
+#     # convert numbers into behavior names
+#     class_dict = {i: x for i, x in enumerate(annotation_classes)}
+#     df["classes"] = df["labels"].copy()
+#     for cl_idx, cl_name in class_dict.items():
+#         df["classes"].iloc[df["labels"] == cl_idx] = cl_name
+
+#     # for simplicity let's convert this back into BORIS type file
+#     dummy_df = pd.get_dummies(df["classes"]).astype(int)
+#     # add 0 columns for each class that wasn't predicted in the file
+#     not_predicted_classes = [x for x in annotation_classes if x not in np.unique(df["classes"].values)]
+#     for not_predicted_class in not_predicted_classes:
+#         dummy_df[not_predicted_class] = 0
+
+#     dummy_df["time"] = time_clm
+#     dummy_df = dummy_df.set_index("time")
+#     if not os.path.isfile(source_file_name):
+#         # save to csv
+#         dummy_df.to_csv(source_file_name)
+#         st.info(f'Saved ethogram csv as {source_file_name}.')
+#     return dummy_df
+# Ali: Re-implemented the function to use class names
 def save_predictions(predict_npy, source_file_name, annotation_classes, framerate):
     """takes numerical labels and transforms back into one-hot encoded file (BORIS style). Saves as csv"""
     predict = np.load(predict_npy, allow_pickle=True)
-
-    df = pd.DataFrame(predict, columns=["labels"])
-    time_clm = np.round(np.arange(0, df.shape[0]) / framerate, 2)
-    # convert numbers into behavior names
-    class_dict = {i: x for i, x in enumerate(annotation_classes)}
-    df["classes"] = df["labels"].copy()
-    for cl_idx, cl_name in class_dict.items():
-        df["classes"].iloc[df["labels"] == cl_idx] = cl_name
-
-    # for simplicity let's convert this back into BORIS type file
-    dummy_df = pd.get_dummies(df["classes"]).astype(int)
-    # add 0 columns for each class that wasn't predicted in the file
-    not_predicted_classes = [x for x in annotation_classes if x not in np.unique(df["classes"].values)]
-    for not_predicted_class in not_predicted_classes:
-        dummy_df[not_predicted_class] = 0
-
-    dummy_df["time"] = time_clm
-    dummy_df = dummy_df.set_index("time")
+    time_clm = np.round(np.arange(len(predict)) / framerate, 2)
+    
+    n_classes = len(annotation_classes)
+    binarized_predict = label_binarize(predict, classes=np.arange(n_classes+1))[:, :-1]
+    
+    dummy_df = pd.DataFrame(binarized_predict, columns=annotation_classes, index=time_clm)
+    dummy_df.index.name = 'time'
+    
     if not os.path.isfile(source_file_name):
         # save to csv
         dummy_df.to_csv(source_file_name)
