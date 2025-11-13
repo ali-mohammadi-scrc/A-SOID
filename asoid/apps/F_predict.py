@@ -445,6 +445,15 @@ def predict_annotate_video(ftype, software, is_3d, multi_animal, selected_bodypa
                 # st.rerun()
             np.save(vidpath_out.replace('mp4', 'npy'),
                     predictions_match)
+            # Ali: Everytime after a prediction is made, the results are saved in npy files
+            # Ali: replacing the existing (if any) npy files
+            # Ali: but since the summary and visualizations are based on .csv files which are generated
+            # Ali: from npy files, only if selected and not replaced if existed
+            # Ali: therefore, better to save .csv files here right away
+            save_predictions(vidpath_out.replace('mp4', 'npy'),
+                                          vidpath_out.replace('mp4', 'csv'),
+                                          annotation_classes=annotation_classes,
+                                          framerate=framerate)
         st.balloons()
 
 def annotate_video(video_path, framerate, annotation_classes,
@@ -559,6 +568,8 @@ def save_predictions(predict_npy, source_file_name, annotation_classes, framerat
     dummy_df = pd.DataFrame(binarized_predict, columns=annotation_classes, index=time_clm)
     dummy_df.index.name = 'time'
     
+    # Ali: This function regenerates the csv everytime but not overwrites existing files
+    # Ali: thereofe the correct info (summary . visualizations) are correct but the saved csvs could be outdated
     if not os.path.isfile(source_file_name):
         # save to csv
         dummy_df.to_csv(source_file_name)
