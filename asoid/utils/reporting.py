@@ -66,7 +66,8 @@ def extract_descriptors(label_df, annotation_classes, framerate):
     :return: pandas dataframe with descriptors
     """
     df_label = label_df.copy()
-    print(df_label.head())
+    # TODO: to be removed
+    # print(df_label.head())
     # df_label = prep_labels_single(df_label, annotation_classes)
     event_counter = count_events(df_label, annotation_classes)
     count_df = df_label.value_counts().to_frame().reset_index()
