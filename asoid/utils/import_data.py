@@ -70,10 +70,6 @@ def load_sleap_data(path, multi_animal=False):
     df = pd.DataFrame(sleap_array, columns=column_names)
     # Ali: From here on we do some preprocessing specific to sleap data
     # Ali: which means diferent data loading functions could have different preprocessing strategies
-    # Ali: For example, missing/NaN values in the middle are interpolated but at the beginning are not handled
-    # Ali: (happened to me in dlc files) but here bfill is used which means the ending NaNs are not handled
-    # Ali: and since there is no preprocessing in the dlc loader, this means that probably
-    # Ali: in another place (probably B-SOiD) another ffill is used
     # Ali: Safest would be to do all preprocessing before importing the data into A-SOiD
     # #change any nan values (lost tracking) to 0
     for i, ani in enumerate(animals):
@@ -86,16 +82,14 @@ def load_sleap_data(path, multi_animal=False):
             df[(ani, bp, 'likelihood')][nan_indexes] = 0
 
     # SLEAP comes with NaN values, so we need to get rid of them!
-    # first linear interpolation
-    clean_df = df.interpolate(method="linear", limit_direction='forward')
-    # backward fill with first valid entry to take care of NaNs in the beginning
-    # Ali: This doesn't work for end NaNs, so we need to do it again
-    # Ali: Changed to both directions to take care of start and end NaNs
-    # Ali: Or even better use linear interpolation or nearest point
+    # Ali: This doesn't work if a body part is missing throughout the whole file
     # Ali: Definitely should not be set to constant as it would create a new cluster of points
     # Ali: with all or some body parts at the same position with distributed over all classes
     # Ali: which makes uncertain samples which would directly affect active learning which is based on uncertainty
-    clean_df.fillna(method="bfill", inplace=True)
+    clean_df.fillna(method="bfill", inplace=True) 
+    # first linear interpolation
+    clean_df = df.interpolate(method="linear", limit_direction='forward')
+    # backward fill with first valid entry to take care of NaNs in the beginning
     # sort bodyparts by alphabet
     clean_df = clean_df.reindex(columns=sorted(bodyparts), level=1)
     return clean_df
