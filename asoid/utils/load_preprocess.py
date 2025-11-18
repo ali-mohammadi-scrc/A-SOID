@@ -422,8 +422,12 @@ class Preprocess:
 
         return label_vector
 
-    def compile_data(self):
-        if st.button("Create Project/Preprocess", help=PREPROCESS_HELP):
+    def compile_data(self, headless=False):
+        # Ali: Adding headless argument to allow running without streamlit button click
+        # Ali: the rest of the class properties should be set before calling this function in headless mode
+        # Ali: e.g. Processor().__dict__.update(your_dict)
+        # Ali: This isn't the best way but a very quick and clean solution for now
+        if headless or st.button("Create Project/Preprocess", help=PREPROCESS_HELP):
             self.input_datafiles = []
             self.input_labelfiles = []
             self.processed_input_data = []
@@ -453,7 +457,8 @@ class Preprocess:
                     if self.pose_data_directories is None:
                         # because we cannot be sure whether the file was already used by read_csv,
                         # we need to refresh the buffer!
-                        f.seek(0)
+                        # Ali: Assuming if it's on headless mode, files are paths not streamlit UploadedFile objects
+                        if not headless: f.seek(0)
                         self.input_datafiles.append(f.name)
                         self.input_labelfiles.append(self.label_csvs[i].name)
 
