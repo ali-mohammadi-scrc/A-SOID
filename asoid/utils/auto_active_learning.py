@@ -275,6 +275,8 @@ class RF_Classify:
 
 
     def subsampled_classify(self):
+        # Ali: The data splitting is being done every time we train the model and depends on the random state to be reproducible
+        # Ali: might result in inconsistency between the saved results and the actual training/test datasets and cannot be used for post hoc evaluation
         self.split_data()
 
         unique_classes = np.unique(np.hstack([np.hstack(self.targets_train), np.hstack(self.targets_heldout)]))

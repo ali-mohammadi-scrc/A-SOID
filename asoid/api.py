@@ -170,6 +170,7 @@ class Trainer:
         if duration_min is not None:
             assert duration_min > 0, "Duration must be greater than 0"
             self.duration_min = duration_min
+            # Ali: I think / 0.1 should be removed based on inspection of the saved features shape and total number of frames
             self.frames2integ = round(self.framerate * (self.duration_min / 0.1))
 
         if self.verbose:
@@ -233,6 +234,7 @@ class Trainer:
         rf_classifier.main()
 
 
+# Ali: Feature extraction and model training do not update the config file with new parameters
 def extract_features(config, duration_min = None):
     """ Extract features from the data and save them to a file.
     :param config: Configuration object.
