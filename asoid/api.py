@@ -479,7 +479,10 @@ def predict(config, path_list
             , save_predictions = True
             , output_dir = None
             , output_types = "smooth"
-            , verbose = False):
+            , verbose = False
+            # Ali: allow passing a pretrained model to be able to easily use best model from training 
+            # Ali: instead of the last one
+            , classifier_model = None):
     """ Predict the behavior from pose data and returns raw and smoothed output.
     :param config: Configuration object.
     :param path_list: List of paths to pose files.
@@ -489,10 +492,13 @@ def predict(config, path_list
     :param output_types: Types of output ("raw", "smooth", "proba"). Default is "smooth". If "raw", save the raw predictions. If "smooth", save the smoothed predictions. If "proba", save the probabilities.
     Can be a list of types. If "all", save all types.
     :param verbose: If True, print the a report for each prediction. Default is False.
+    :param classifier_model: Pretrained classifier model. If None, load the model from the config file. Default is None.
     :return: predictions_raw, predictions_match, prediction_proba: List of predictions per file (raw, smoothed, and probabilities). 
     """
 
     predictor = Predictor(config, verbose=verbose)
+    if classifier_model is not None:
+        predictor.iterX_model = classifier_model
     predictor.extract_features(path_list)
     predictor.predict(smooth_size=smooth_size)
     
