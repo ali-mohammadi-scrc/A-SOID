@@ -217,6 +217,8 @@ class RF_Classify:
         self.iter0_predict_prob = None
 
         self.iterX_model = None
+        # Ali: Saving models for each iteration to allow picking the best one later
+        self.iterX_models_list = np.empty(max_iter, dtype=object)
         self.iterX_X_train_list = []
         self.iterX_Y_train_list = []
         self.iterX_f1_scores_list = []
@@ -475,7 +477,21 @@ class RF_Classify:
         self.iterX_predict_prob_list.append(self.iterX_model.predict_proba(
             self.features_train[self.targets_train != self.label_code_other]))
         self.sampled_idx_list.append(sampled_idx)
-
+        
+        # Ali: Save the model for this iteration
+        # Ali: compare current f1 scores with previous iterations to not keep models that were worse in all classes
+        # Ali: post-hoc can be done with a single value metric 
+        # Ali: e.g. Matthews correlation coefficient or macro f1 score, for which the test set predictions would need to be saved as well        
+        
+        # Ali: Stack previous f1 scores (all classes) except for the current one
+        pre_f1_scores = np.vstack(self.iterX_f1_scores_list)[:-1]
+        # Ali: Mark models that were worse in all classes as None
+        self.iterX_models_list[:it][np.all(curr_f1_scores[None, :] > pre_f1_scores, axis=1)] = None
+        # Ali: Insert the current model if it was not worse in all classes than any previous iteration
+        self.iterX_models_list[it] = self.iterX_model
+        if np.any(np.all(curr_f1_scores[None, :] < pre_f1_scores, axis=1)):
+            self.iterX_models_list[it] = None
+        
     def self_learn(self):
         compute_confidence = get_confidence_calc(self.conf_type)
 
@@ -588,6 +604,9 @@ class RF_Classify:
                       self.iterX_Y_train_list,
                       self.iterX_f1_scores_list,
                   ])
+        # Ali: Save selected models/iterations
+        save_data(self.project_dir, self.iter_dir, 'iterX_models.sav', 
+                  self.iterX_models_list[:len(self.iterX_f1_scores_list)])
 
     def main(self):
         self.base_classification()
